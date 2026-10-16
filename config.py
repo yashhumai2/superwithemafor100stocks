@@ -29,3 +29,6 @@ INCLUDE_EMA_ONLY_SNAPSHOT = False
 
 # Dedup: don't re-send same symbol+side within this many hours
 ALERT_COOLDOWN_HOURS = 8
+
+# Min hours between full scans (UptimeRobot free pings ~every 5 min)
+SCAN_INTERVAL_HOURS = float(os.getenv("SCAN_INTERVAL_HOURS", "4"))
