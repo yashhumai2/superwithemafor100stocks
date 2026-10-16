@@ -74,3 +74,44 @@ EMA_PERIODS=20,50,100,150,200
 ```
 
 Or edit `EMA_PERIODS` in `config.py`.
+
+## Deploy on Render (every 4 hours)
+
+### 1. Push this repo to GitHub
+
+### 2. Create the service on Render
+
+1. Go to [dashboard.render.com](https://dashboard.render.com) → **New** → **Web Service**
+2. Connect the GitHub repo
+3. Settings:
+   - **Build command:** `pip install -r requirements.txt`
+   - **Start command:** `gunicorn app:app --bind 0.0.0.0:$PORT --timeout 600`
+   - **Plan:** Free
+4. Environment variables:
+   - `TELEGRAM_BOT_TOKEN` = your bot token
+   - `TELEGRAM_CHAT_ID` = `1760826142`
+   - `SCAN_SECRET` = any random string (optional but recommended)
+   - `EMA_PERIODS` = `9,21,50,100,200` (optional)
+
+Or use **New → Blueprint** and point at `render.yaml` (set the sync:false secrets in the UI).
+
+### 3. Ping `/scan` every 4 hours (required on Free)
+
+Free web services sleep when idle. Use a free cron pinger:
+
+1. Open [cron-job.org](https://cron-job.org) (or EasyCron / UptimeRobot)
+2. Create a job every **4 hours**
+3. URL (replace host + secret):
+
+```
+https://YOUR-APP.onrender.com/scan?key=YOUR_SCAN_SECRET
+```
+
+Each ping wakes Render, runs the full NSE Top 100 4H scan, and sends Telegram BUY/SELL alerts.
+
+### Paid alternative: Render Cron Job
+
+- **Schedule:** `0 */4 * * *` (UTC)
+- **Build:** `pip install -r requirements.txt`
+- **Start:** `python scanner.py`
+- Same Telegram env vars — no external pinger needed.

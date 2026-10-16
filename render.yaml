@@ -1,0 +1,25 @@
+# Render Blueprint — free Web Service
+# Ping GET /scan every 4 hours (e.g. cron-job.org) to run the scanner.
+#
+# For a paid Render Cron Job instead, create Cron Job in dashboard:
+#   schedule: 0 */4 * * *
+#   build:    pip install -r requirements.txt
+#   start:    python scanner.py
+
+services:
+  - type: web
+    name: nse-st-ema-scanner
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 600
+    healthCheckPath: /
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: SCAN_SECRET
+        generateValue: true
+      - key: EMA_PERIODS
+        value: "9,21,50,100,200"
