@@ -35,12 +35,12 @@ def format_scan_message(
 ) -> str:
     lines = [
         f"<b>NSE Top 100 — {timeframe.upper()} Scan</b>",
-        f"Filter: Dual Supertrend flip + price vs EMA {ema_periods}",
+        f"Today only: fresh Dual Supertrend arrow + EMA filter {ema_periods}",
         "",
     ]
 
     if buys:
-        lines.append("<b>🟢 BUY</b> (both ST green + above all 5 EMAs)")
+        lines.append("<b>🟢 BUY</b> (ST just flipped green + above all 5 EMAs)")
         for s in buys:
             lines.append(
                 f"• <b>{s['symbol']}</b>  ₹{s['close']:.2f}  "
@@ -52,7 +52,7 @@ def format_scan_message(
         lines.append("")
 
     if sells:
-        lines.append("<b>🔴 SELL</b> (both ST red + below all 5 EMAs)")
+        lines.append("<b>🔴 SELL</b> (ST just flipped red + below all 5 EMAs)")
         for s in sells:
             lines.append(
                 f"• <b>{s['symbol']}</b>  ₹{s['close']:.2f}  "

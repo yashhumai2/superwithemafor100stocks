@@ -111,12 +111,17 @@ def add_indicators(
     out["st1_dir"] = dir1
     out["st2_dir"] = dir2
 
-    out["both_green"] = (out["st1_dir"] < 0) & (out["st2_dir"] < 0)
-    out["both_red"] = (out["st1_dir"] > 0) & (out["st2_dir"] > 0)
+    out["both_green"] = ((out["st1_dir"] < 0) & (out["st2_dir"] < 0)).astype(bool)
+    out["both_red"] = ((out["st1_dir"] > 0) & (out["st2_dir"] > 0)).astype(bool)
 
-    # Fresh flip — same as Pine: bothGreen and not bothGreen[1]
-    out["buy_signal"] = out["both_green"] & ~out["both_green"].shift(1).fillna(False)
-    out["sell_signal"] = out["both_red"] & ~out["both_red"].shift(1).fillna(False)
+    # Fresh flip only — same as Pine: bothGreen and not bothGreen[1]
+    # Use numpy edge detect (pandas ~ on shifted bools can break and fire every bar)
+    bg = out["both_green"].to_numpy(dtype=bool)
+    br = out["both_red"].to_numpy(dtype=bool)
+    buy_edge = bg & np.concatenate(([False], ~bg[:-1]))
+    sell_edge = br & np.concatenate(([False], ~br[:-1]))
+    out["buy_signal"] = pd.Series(buy_edge, index=out.index)
+    out["sell_signal"] = pd.Series(sell_edge, index=out.index)
 
     # Above ALL = close > every EMA; below ALL = close < every EMA
     ema_cols = [f"ema_{p}" for p in ema_periods]

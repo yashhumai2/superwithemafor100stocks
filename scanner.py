@@ -89,8 +89,16 @@ def fetch_4h(symbol: str) -> pd.DataFrame | None:
     return df
 
 
+def _bar_time_ist(ts) -> datetime:
+    if hasattr(ts, "to_pydatetime"):
+        ts = ts.to_pydatetime()
+    if getattr(ts, "tzinfo", None) is None:
+        return ts.replace(tzinfo=IST)
+    return ts.astimezone(IST)
+
+
 def evaluate_symbol(symbol: str) -> dict | None:
-    """Return alert dict if latest closed 4H bar has buy/sell alert."""
+    """Return alert only on a FRESH Dual-ST flip today (IST), with EMA filter."""
     df = fetch_4h(symbol)
     if df is None:
         return None
@@ -104,58 +112,31 @@ def evaluate_symbol(symbol: str) -> dict | None:
         config.ST2_FACTOR,
     )
 
-    # Prefer the previous bar (fully closed); also check last bar for a fresh flip.
-    candidates = []
-    if len(ind) > 1:
-        candidates.append(ind.iloc[-2])
-    candidates.append(ind.iloc[-1])
+    today = datetime.now(IST).date()
+    # Only today's 4H bars — fresh flip arrow, not "still above/below EMAs"
+    todays = []
+    for i in range(len(ind)):
+        row = ind.iloc[i]
+        ts = _bar_time_ist(row.name)
+        if ts.date() != today:
+            continue
+        if bool(row["buy_alert"]) or bool(row["sell_alert"]):
+            todays.append((ts, row))
 
-    for row in candidates:
-        ts = row.name
-        if hasattr(ts, "to_pydatetime"):
-            ts = ts.to_pydatetime()
-        if getattr(ts, "tzinfo", None) is None:
-            ts_str = str(ts)
-        else:
-            ts_str = ts.astimezone(IST).strftime("%Y-%m-%d %H:%M IST")
+    if not todays:
+        return None
 
-        base = {
-            "symbol": symbol,
-            "close": float(row["Close"]),
-            "time": ts_str,
-            "above_all_emas": bool(row["above_all_emas"]),
-            "below_all_emas": bool(row["below_all_emas"]),
-        }
-
-        if bool(row["buy_alert"]):
-            return {**base, "side": "BUY"}
-        if bool(row["sell_alert"]):
-            return {**base, "side": "SELL"}
-
-    if config.INCLUDE_EMA_ONLY_SNAPSHOT:
-        last = ind.iloc[-1]
-        ts = last.name
-        ts_str = str(ts)
-        if bool(last["above_all_emas"]):
-            return {
-                "symbol": symbol,
-                "close": float(last["Close"]),
-                "time": ts_str,
-                "side": "ABOVE_EMAS",
-                "above_all_emas": True,
-                "below_all_emas": False,
-            }
-        if bool(last["below_all_emas"]):
-            return {
-                "symbol": symbol,
-                "close": float(last["Close"]),
-                "time": ts_str,
-                "side": "BELOW_EMAS",
-                "above_all_emas": False,
-                "below_all_emas": True,
-            }
-
-    return None
+    # If multiple flips today, keep the latest one
+    ts, row = todays[-1]
+    side = "BUY" if bool(row["buy_alert"]) else "SELL"
+    return {
+        "symbol": symbol,
+        "close": float(row["Close"]),
+        "time": ts.strftime("%Y-%m-%d %H:%M IST"),
+        "above_all_emas": bool(row["above_all_emas"]),
+        "below_all_emas": bool(row["below_all_emas"]),
+        "side": side,
+    }
 
 
 def run_scan(send: bool = True) -> tuple[list[dict], list[dict]]:
